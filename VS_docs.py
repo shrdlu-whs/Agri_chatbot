@@ -9,7 +9,7 @@ def get_embeddings(embedding_model_id): # returns the embedding model
 
 embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
 pdf_load_path = "./pdfs"
-pdf_save_path = "./VSCopy/VS_pdfs"
+pdf_save_path = "./VS/VS_pdfs"
 
 # Convert PDF files to embeddings in vector store
 def VS_pdfs(embedding_model_id, pdf_load_path, pdf_save_path):

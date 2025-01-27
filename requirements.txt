@@ -1,0 +1,11 @@
+torch
+torchvision
+torchaudio
+transformers
+langchain_huggingface
+langchain_core
+langchain_groq
+langchain_community
+pandas
+pdfminer.six
+streamlit

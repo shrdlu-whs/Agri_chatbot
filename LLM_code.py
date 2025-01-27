@@ -1,20 +1,12 @@
 import os
-import transformers
 from langchain_huggingface import HuggingFaceEmbeddings
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-import torch
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-import time
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_community.document_loaders import PDFMinerLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA, ConversationalRetrievalChain, ConversationChain
-import pandas as pd
-from langchain_core.documents import Document
-from langchain.memory import ChatMessageHistory, ConversationBufferMemory,ConversationSummaryMemory, ConversationBufferWindowMemory
+from langchain.chains import ConversationalRetrievalChain, ConversationChain
+from langchain.memory import ChatMessageHistory, ConversationBufferWindowMemory
 
 load_dotenv(override = True)
 groq_api_key = os.getenv('groq_api_key')
@@ -35,6 +27,7 @@ embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
 model_id = "llama-3.3-70b-versatile"
 llm = load_llm(model_id)
 
+# Create Conversational RAG chain
 def conversation_QAchain(path):
     vectorstore = FAISS.load_local(path, get_embeddings(embedding_model_id), allow_dangerous_deserialization=True)
     retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
@@ -52,6 +45,7 @@ def conversation_QAchain(path):
                                                   get_chat_history=lambda h: h)
     return chain
 
+# Create Conversational LLM chain
 def conversational_llm():
     chain_llm = ConversationChain(
         llm=llm,
@@ -60,6 +54,10 @@ def conversational_llm():
     )
     return chain_llm
 
+# Generate query responses from all three sources
+# RAG with papers in vector store
+# RAG with tables in vector store
+# General LLM
 def Responses(query):
     chain_pdf = conversation_QAchain("./VS/VS_pdfs")
     chain_tables = conversation_QAchain("./VS/VS_tables")
@@ -72,11 +70,13 @@ def Responses(query):
     
     return res_pdf, res_tables, gen_responses
 
+# Create prompt template
 def prompt():
     template = read_txt("Prompt_for_fusion_1.txt")
     prompt_template = PromptTemplate(input_variables=["Answer_from_scientic_papers", "Answer_from_scientific_data_tables", "Generic_Answer_from_LLM"], template=template)
     return prompt_template
 
+# Fuse query responses from all three LLMs into one response
 def fused_response(query):
     res_pdf, res_tables, gen_responses = Responses(query)
     prompt_template = prompt()

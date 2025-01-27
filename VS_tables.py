@@ -11,10 +11,13 @@ def get_embeddings(embedding_model_id):
     return HuggingFaceEmbeddings(model_name=embedding_model_id)
 
 embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
+tables_load_path = "./tables"
+tables_save_path = "./VS/VS_tables"
 
 def add_documents_to_vector_store(batch, vector_store):
     vector_store.add_documents(documents=batch)
 
+# Convert tables in CSV ans XSLX format to embeddings in vector store
 def VS_tables(embedding_model_id):
     text_chunks_all = list()
     embeddings = get_embeddings(embedding_model_id)
@@ -31,11 +34,11 @@ def VS_tables(embedding_model_id):
     )
     
     # Process CSV and Excel files in the "tables" directory
-    for file in os.listdir("./tables"):
+    for file in os.listdir(tables_load_path):
         if file.endswith(".csv"):
-            df = pd.read_csv(os.path.join("./tables", file), encoding='utf-8', encoding_errors="replace")
+            df = pd.read_csv(os.path.join(tables_load_path, file), encoding='utf-8', encoding_errors="replace")
         elif file.endswith(".xlsx"):
-            df = pd.read_excel(os.path.join("./tables", file))
+            df = pd.read_excel(os.path.join(tables_load_path, file))
         
         docs = []
         for index, row in df.iterrows():
@@ -54,5 +57,6 @@ def VS_tables(embedding_model_id):
     for i in range(0, total_documents, batch_size):
         batch = text_chunks_all[i:i + batch_size]
         add_documents_to_vector_store(batch, vector_store)
-    vector_store.save_local("./VS/VS_tables")
+    vector_store.save_local(tables_save_path)
+
 save_vs_tab = VS_tables(embedding_model_id)

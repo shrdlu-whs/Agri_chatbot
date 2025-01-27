@@ -1,7 +1,7 @@
 import streamlit as st
 from LLM_code import fused_response
 
-# Load user guide on promt creation
+# Load user guide on prompt creation
 txt_path = "How_To_Create_Effective_Prompts.md"
 with open(txt_path, 'r', encoding="utf8") as f:
         prompt_guide = f.read()

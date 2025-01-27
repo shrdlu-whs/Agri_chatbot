@@ -9,15 +9,14 @@ Follow these instructions to get a copy of the project up and running on your lo
 ### Prerequisites
 
 Ensure you have the following installed:
-- Python 3.7 or higher
+- Python 3.10 or higher
 - pip (Python package installer)
 
 ### Installation
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/ECOHack_chatbot.git
-    cd ECOHack_chatbot
+    git clone https://github.com/Vamsi-Kommineni/Agri_chatbot
     ```
 2. Create and activate virtual environment:
     ```bash

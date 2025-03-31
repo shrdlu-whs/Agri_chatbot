@@ -14,11 +14,48 @@ embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
 tables_load_path = "./Agri_chatbot/tables"
 tables_save_path = "./Agri_chatbot/VS/VS_tables"
 
+def process_pesticide_effects(df):
+    # Clean data
+    df = df.drop(columns=["id","X","CodingFinished","Screener","Extracter","Extraction.Suitable","ExtractionComments","Comments","GeneralComments","Country","SystemComments","ExperimentObservation","SpatialExtent.km2.","CaseDescription","Case_ID"])
+    na_columns = df.columns[df.isna().all()].tolist()
+    df = df.drop(columns=na_columns)
+    single_value_columns = [col for col in df.columns if df[col].isin([False, 'false','FALSE',True,'true','TRUE','yes','no']).all()]
+    df = df.drop(columns=single_value_columns)
+    print("Columns with only NA values are dropped:", na_columns)
+    print("Columns with only false or true values are dropped:", single_value_columns)
+    # Drop columns with a single unique value
+    single_value_columns = [col for col in df.columns if df[col].nunique() == 1]
+    df = df.drop(columns=single_value_columns)
+    print("Columns with a single unique value are dropped:", single_value_columns)
+    # Group rows by unique paper ID and create a document for each group
+    grouped = df.groupby("ID")
+    docs = []
+    for paper_id, group in grouped:
+        metadata = {
+            "id": paper_id,
+            "author": group["Author"].iloc[0] if "Author" in group.columns else None,
+            "name_of_pdf": group["NameOfPDF"].iloc[0] if "NameOfPDF" in group.columns else None,
+            "doi": group["DOI"].iloc[0] if "DOI" in group.columns else None
+        }
+        # Drop metadata columns from the group
+        group = group.drop(columns=["ID", "Author", "NameOfPDF", "DOI"], errors="ignore")
+        # Combine all rows to a single output string
+        content = ""
+        for index, row in group.iterrows():
+            output_str = ""
+            for col in group.columns:
+                output_str += f"{col}: {row[col]}, "
+            output_str += "\n"
+            content = ''.join([content,output_str])
+        # Create a document with the content and metadata
+        docs.append(Document(page_content=content, metadata=metadata))
+    return docs
+
 def add_documents_to_vector_store(batch, vector_store):
     vector_store.add_documents(documents=batch)
 
 # Convert tables in CSV ans XSLX format to embeddings in vector store
-def VS_tables(embedding_model_id, tables_load_path, tables_save_path):
+def vector_store_tables(embedding_model_id, tables_load_path, tables_save_path):
     text_chunks_all = list()
     embeddings = get_embeddings(embedding_model_id)
     
@@ -40,15 +77,20 @@ def VS_tables(embedding_model_id, tables_load_path, tables_save_path):
         elif file.endswith(".xlsx"):
             df = pd.read_excel(os.path.join(tables_load_path, file))
         
-        docs = []
-        for index, row in df.iterrows():
-            output_str = ""
-            for col in df.columns:
-                output_str += f"{col}: {row[col]},\n"
-            docs.append(output_str)
-        
-        # Create documents and split into chunks
-        documents = Document(page_content=str(docs), metadata={"source": file})
+        if file.startswith("PesticidesEffectsClean"):
+            docs = process_pesticide_effects(df)
+        else:
+            # Create documents from file
+            content = ""
+            for index, row in df.iterrows():
+                output_str = ""
+                for col in df.columns:
+                    output_str += f"{col}: {row[col]}, "
+                output_str += "\n"
+                content = ''.join([content,output_str])
+            
+            documents = Document(page_content=content, metadata={"source": file})
+        # Split document into chunks
         text_chunks = text_splitter.split_documents([documents])
         text_chunks_all.extend(text_chunks)
     batch_size = 2000
@@ -59,4 +101,4 @@ def VS_tables(embedding_model_id, tables_load_path, tables_save_path):
         add_documents_to_vector_store(batch, vector_store)
     vector_store.save_local(tables_save_path)
 
-save_vs_tab = VS_tables(embedding_model_id, tables_load_path, tables_save_path)
+vector_store_tables(embedding_model_id, tables_load_path, tables_save_path)

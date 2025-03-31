@@ -137,6 +137,17 @@ def fused_response(query: str):
     # Execute graph
     final_state = graph.invoke(state)
 
+    # Extract metadata from papers to cite title, author and date when available
+    references_papers = set({
+        f"{doc.metadata.get('author', 'Unknown Author')} - {doc.metadata.get('title', 'Untitled')} ({doc.metadata.get('date', 'Unknown Date')})"
+        for doc in final_state["context_papers"]
+    })
+
+    # Extract metadata from tables when available
+    references_tables = set([
+        doc.metadata.get("source", "Unknown Source") for doc in final_state["context_tables"]
+    ])
+
     # Retrieve the final answer
-    return final_state["final_answer"]
+    return final_state["final_answer"], references_papers, references_tables
 

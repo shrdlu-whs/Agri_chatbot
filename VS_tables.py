@@ -11,14 +11,14 @@ def get_embeddings(embedding_model_id):
     return HuggingFaceEmbeddings(model_name=embedding_model_id)
 
 embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
-tables_load_path = "./tables"
-tables_save_path = "./VS/VS_tables"
+tables_load_path = "./Agri_chatbot/tables"
+tables_save_path = "./Agri_chatbot/VS/VS_tables"
 
 def add_documents_to_vector_store(batch, vector_store):
     vector_store.add_documents(documents=batch)
 
 # Convert tables in CSV ans XSLX format to embeddings in vector store
-def VS_tables(embedding_model_id):
+def VS_tables(embedding_model_id, tables_load_path, tables_save_path):
     text_chunks_all = list()
     embeddings = get_embeddings(embedding_model_id)
     
@@ -59,4 +59,4 @@ def VS_tables(embedding_model_id):
         add_documents_to_vector_store(batch, vector_store)
     vector_store.save_local(tables_save_path)
 
-save_vs_tab = VS_tables(embedding_model_id)
+save_vs_tab = VS_tables(embedding_model_id, tables_load_path, tables_save_path)

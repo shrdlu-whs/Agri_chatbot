@@ -1,11 +1,11 @@
-Here are three answers related to the same question, coming from different sources:
+Here are answers related to the same question, coming from different sources:
 
-Answer_from_scientic_papers: "{Answer_from_scientic_papers}"
-Answer_from_scientific_data_tables: "{Answer_from_scientific_data_tables}"
-Generic_Answer_from_LLM: "{Generic_Answer_from_LLM}"
+Scientific papers: "{response_papers}"
+Scientific data: "{response_tables}"
 Please combine these answers into one comprehensive response. Make sure to:
 
-Integrate the key points from all three answers.
+Keep your answer concise and under 150 words.
+Integrate the key points from all answers.
 If there are conflicting pieces of information, choose the most accurate and relevant answer based on the context.
-Present the final combined response clearly and cohesively, addressing any important details from each source. Do not mention the information about the individual answers in the combined response.
+Present the final combined response clearly and cohesively, addressing any important details from each source. Do not mention the individual answers in the combined response.
 

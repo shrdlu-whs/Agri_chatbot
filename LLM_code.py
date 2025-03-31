@@ -1,85 +1,142 @@
 import os
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-from dotenv import load_dotenv
-from langchain_core.prompts import PromptTemplate
+from typing import List, TypedDict
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import ConversationalRetrievalChain, ConversationChain
-from langchain.memory import ChatMessageHistory, ConversationBufferWindowMemory
+from langchain.prompts import PromptTemplate
+from langchain.schema import Document
+from langgraph.graph import START, StateGraph
+from dotenv import load_dotenv
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from langchain.chat_models import init_chat_model
 
-load_dotenv(override = True)
-groq_api_key = os.getenv('groq_api_key')
+# Load environment variables
+load_dotenv(override=True)
+groq_api_key = os.getenv("GROQ_API_KEY")
 
-def read_txt(txt_path):  # Returns the content in the text files
-    with open(txt_path, 'r') as f:
-        content = f.read()
-    return content
+# Define the state structure
+class State(TypedDict):
+    question: str
+    context_papers: List[Document]
+    context_tables: List[Document]
+    response_papers: str
+    response_tables: str
+    final_answer: str
 
-def load_llm(model_id):  # Returns the defined llm
-    llm = ChatGroq(model_name=model_id, temperature=0, groq_api_key=groq_api_key)
-    return llm
-
+# Initialize embedding model
+embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
 def get_embeddings(embedding_model_id):  # Returns the embedding model
     return HuggingFaceEmbeddings(model_name=embedding_model_id)
 
-embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
-model_id = "llama-3.3-70b-versatile"
-llm = load_llm(model_id)
+# Initialize LLM
+#model_id = "llama3-8b-8192"
+#model_provider="groq"
+model_id="smollm2:135m"
+model_provider="ollama"
+def load_llm():
+    llm = init_chat_model(model_id, model_provider=model_provider,temperature=0, groq_api_key=groq_api_key)
+    return llm
+llm = load_llm()
 
-# Create Conversational RAG chain
-def conversation_QAchain(path):
-    vectorstore = FAISS.load_local(path, get_embeddings(embedding_model_id), allow_dangerous_deserialization=True)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
-    message_history = ChatMessageHistory()
-    window_memory = ConversationBufferWindowMemory(k=4,
-                                                   memory_key="chat_history",
-                                                   output_key="answer",
-                                                   chat_memory=message_history,
-                                                   return_messages=True)
-    chain = ConversationalRetrievalChain.from_llm(llm=llm,
-                                                  retriever=retriever,
-                                                  chain_type="stuff",
-                                                  memory=window_memory,
-                                                  return_source_documents=True,
-                                                  get_chat_history=lambda h: h)
-    return chain
+# Load vector stores
+def load_vector_store(path: str):
+    return FAISS.load_local(path, get_embeddings(embedding_model_id), allow_dangerous_deserialization=True)
 
-# Create Conversational LLM chain
-def conversational_llm():
-    chain_llm = ConversationChain(
-        llm=llm,
-        verbose=False,
-        memory=ConversationBufferWindowMemory(k=4)
+vector_store_pdf = load_vector_store("./Agri_chatbot/VS/VS_pdfs")
+vector_store_tables = load_vector_store("./Agri_chatbot/VS/VS_tables")
+
+# Load prompt template
+template_path = "./Agri_chatbot/Prompt_for_fusion_1.txt"
+def load_prompt_template():
+    with open(template_path, "r") as f:
+        template_content = f.read()
+    return PromptTemplate(
+        input_variables = ["response_papers", "response_tables"],
+        template = template_content
     )
-    return chain_llm
 
-# Generate query responses from all three sources
-# RAG with papers in vector store
-# RAG with tables in vector store
-# General LLM
-def Responses(query):
-    chain_pdf = conversation_QAchain("./VS/VS_pdfs")
-    chain_tables = conversation_QAchain("./VS/VS_tables")
-    chain_llm = conversational_llm()
+prompt = load_prompt_template()
 
-    # Synchronously invoke the chains for responses
-    res_pdf = chain_pdf.invoke(query)
-    res_tables = chain_tables.invoke(query)
-    gen_responses = chain_llm.invoke(query)
+# Define application steps
+def retrieve_papers(state: State):
+    retrieved_docs = vector_store_pdf.similarity_search(state["question"], k=5)
+    return {"context_papers": retrieved_docs}
+
+def retrieve_tables(state: State):
+    retrieved_docs = vector_store_tables.similarity_search(state["question"], k=5)
+    return {"context_tables": retrieved_docs}
+
+def generate_response_papers(state: State):
+    # Combine content into a single string
+    context_content = "\n\n".join(doc.page_content for doc in state["context_papers"])
     
-    return res_pdf, res_tables, gen_responses
+    # Format the input using BaseMessages
+    messages = [
+        HumanMessage(content=f"Question: {state['question']}"),
+        HumanMessage(content=f"Context: {context_content}")
+    ]
+    
+    response = llm.invoke(messages)  # Send formatted list of messages
+    return {"response_papers": response.content}
 
-# Create prompt template
-def prompt():
-    template = read_txt("Prompt_for_fusion_1.txt")
-    prompt_template = PromptTemplate(input_variables=["Answer_from_scientic_papers", "Answer_from_scientific_data_tables", "Generic_Answer_from_LLM"], template=template)
-    return prompt_template
+def generate_response_tables(state: State):
+    # Combine content into a single string
+    context_content = "\n\n".join(doc.page_content for doc in state["context_tables"])
+    # Format the input using BaseMessages
+    messages = [
+        HumanMessage(content=f"Question: {state['question']}"),
+        HumanMessage(content=f"Context: {context_content}")
+    ]
+    
+    response = llm.invoke(messages)  # Send formatted list of messages
+    return {"response_tables": response.content}
 
-# Fuse query responses from all three LLMs into one response
-def fused_response(query):
-    res_pdf, res_tables, gen_responses = Responses(query)
-    prompt_template = prompt()
-    final_prompt = prompt_template.format(Answer_from_scientic_papers=res_pdf["answer"], Answer_from_scientific_data_tables=res_tables["answer"], Generic_Answer_from_LLM=gen_responses["response"])
-    return llm.invoke(final_prompt)
+def generate_response_generic(state: State):
+
+    # Format the input using BaseMessages
+    messages = [
+        HumanMessage(content=f"Question: {state['question']}")
+    ]
+    
+    response = llm.invoke(messages)  # Send formatted list of messages
+    return {"response_generic": response.content}
+
+
+def generate_final_response(state: State):
+    final_prompt = prompt.format(
+        response_papers = state["response_papers"],
+        response_tables = state["response_tables"],
+    )
+    response = llm.invoke(final_prompt)
+    return {"final_answer": response.content}
+
+# Build the StateGraph
+graph_builder = StateGraph(State).add_sequence([
+    retrieve_papers,
+    retrieve_tables,
+    generate_response_papers,
+    generate_response_tables,
+    generate_final_response
+])
+graph_builder.add_edge(START, "retrieve_papers")
+graph = graph_builder.compile()
+
+# Example usage
+def fused_response(query: str):
+    # Initialize state
+    state = {
+        "question": query,
+        "context_papers": [],
+        "ref_papers": [],
+        "context_tables": [],
+        "ref_tables": [],
+        "response_papers": "",
+        "response_tables": "",
+        "final_answer": ""
+    }
+    
+    # Execute graph
+    final_state = graph.invoke(state)
+
+    # Retrieve the final answer
+    return final_state["final_answer"]
 

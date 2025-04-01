@@ -53,7 +53,3 @@ Once the application is running, you can interact with the chatbot by typing you
 
 ### Contributors
 Vamsi Krishna Kommineni (Friedrich Schiller University Jena), Anne Peter (Johann Heinrich von Thünen Institut), Caren Daniel (Independent Data Scientist) and Alexander Espig (Leibniz University Hannover)
-
-### License
-
-This project is licensed under the MIT License.

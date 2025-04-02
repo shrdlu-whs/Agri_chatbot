@@ -54,17 +54,13 @@ if user_prompt:
         with st.spinner("Thinking..."):
             try:
                 # Process the user input using fused_response
-                response, references_papers, references_tables = fused_response(user_message.content)
+                response= fused_response(user_message.content)
+                # Update references in session state
                 ai_message = AIMessage(content=response)
                 st.write(ai_message.content)
-                st.write("References:\n")
-                for ref in references_papers:
-                    st.markdown(f"- {ref}")
-                for ref in references_tables:
-                    st.markdown(f"- {ref}")
-
                 # Add assistant's response as an AIMessage to the session state
                 st.session_state.messages.append(ai_message)
 
             except Exception as e:
                 st.error(f"An error occurred while processing your query: {e}")
+

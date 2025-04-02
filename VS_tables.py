@@ -34,7 +34,7 @@ def process_pesticide_effects(df):
         metadata = {
             "id": paper_id,
             "author": group["Author"].iloc[0] if "Author" in group.columns else None,
-            "name_of_pdf": group["NameOfPDF"].iloc[0] if "NameOfPDF" in group.columns else None,
+            "title": group["NameOfPDF"].iloc[0] if "NameOfPDF" in group.columns else None,
             "doi": group["DOI"].iloc[0] if "DOI" in group.columns else None
         }
         # Drop metadata columns from the group
@@ -89,7 +89,7 @@ def vector_store_tables(embedding_model_id, tables_load_path, tables_save_path):
                 output_str += "\n"
                 content = ''.join([content,output_str])
             
-            documents = Document(page_content=content, metadata={"source": file})
+            documents = Document(page_content=content, metadata={"author": "Atharva Ingle","title": "Crop Recommendation Dataset", "url":"https://www.kaggle.com/datasets/atharvaingle/crop-recommendation-dataset"})
         # Split document into chunks
         text_chunks = text_splitter.split_documents([documents])
         text_chunks_all.extend(text_chunks)

@@ -10,7 +10,8 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 def get_embeddings(embedding_model_id):
     return HuggingFaceEmbeddings(model_name=embedding_model_id)
 
-embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
+#embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
+embedding_model_id = "intfloat/e5-base-v2"
 tables_load_path = "./Agri_chatbot/tables"
 tables_save_path = "./Agri_chatbot/VS/VS_tables"
 tables_metadata = "./Agri_chatbot/tables/metadata.csv"
@@ -32,12 +33,15 @@ def create_documents(df, metadata, rows_per_document: int = 1):
 
     return documents
 
-# Include header in each chunk
-def include_header_in_chunks(chunks, header):
+# Include table header in each chunk
+def include_headers_in_chunks(chunks, header, embedding_header="passage"):
     updated_chunks = []
     for chunk in chunks:
         # Prepend the header to the chunk
         updated_chunk = header + "\n" + chunk.page_content
+        # Prepend embedding header
+        chunk.page_content = f"{embedding_header}: {chunk.page_content}"
+
         # Add the updated chunk to the list
         updated_chunks.append(Document(page_content=updated_chunk, metadata=chunk.metadata))
     return updated_chunks
@@ -50,16 +54,9 @@ def vector_store_tables(embedding_model_id, tables_load_path, tables_save_path):
     text_chunks_all = list()
     embeddings = get_embeddings(embedding_model_id)
     
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=20)
     dim = len(embeddings.embed_query("dummy text"))
     index = faiss.IndexHNSWFlat(dim, 32)
-    
-    vector_store = FAISS(
-        embedding_function=embeddings,
-        index=index,
-        docstore=InMemoryDocstore(),
-        index_to_docstore_id={}
-    )
     
     # Process CSV and Excel files in the metadata csv
     # Load metadata csv
@@ -80,15 +77,12 @@ def vector_store_tables(embedding_model_id, tables_load_path, tables_save_path):
         documents = create_documents(df, metadata, rows_per_document=5)
         # Split the documents into chunks
         header = ", ".join([f"{col}" for col in df.columns]) 
-        text_chunks = text_splitter.split_documents(documents)  
-        text_chunks_with_header = include_header_in_chunks(text_chunks, header)
+        text_chunks = text_splitter.split_documents(documents)
+        # Include table headers and embedding prefix in chunk
+        text_chunks_with_header = include_headers_in_chunks(text_chunks, header)
         text_chunks_all.extend(text_chunks_with_header)
-    batch_size = 2000
-    total_documents = len(text_chunks_all)
 
-    for i in range(0, total_documents, batch_size):
-        batch = text_chunks_all[i:i + batch_size]
-        add_documents_to_vector_store(batch, vector_store)
-    vector_store.save_local(tables_save_path)
+    vectorstore = FAISS.from_documents(text_chunks_all, embeddings)
+    vectorstore.save_local(tables_save_path)
 
 vector_store_tables(embedding_model_id, tables_load_path, tables_save_path)

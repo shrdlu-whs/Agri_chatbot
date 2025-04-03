@@ -25,7 +25,8 @@ class State(TypedDict):
     final_answer: str
 
 # Initialize embedding model
-embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
+#embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
+embedding_model_id = "intfloat/e5-base-v2"
 def get_embeddings(embedding_model_id):
     return HuggingFaceEmbeddings(model_name=embedding_model_id)
 
@@ -65,18 +66,14 @@ rag_prompt_template = load_prompt_template(template_path_rag, input_variables_ra
 
 def retrieve_papers(state: State):
     # Retrieve documents along with relevance scores
+    query = f"query: {state['question']}"
     retrieved_docs = vector_store_pdf.similarity_search_with_relevance_scores(
-        state["question"], k=6
+        query, k=5,score_threshold=0.75
     )
-    threshold = 0.3
-    # Filter documents based on the relevance scores
-    retrieved_docs = [
-        doc for doc, score in retrieved_docs if score >= threshold
-    ]
-
+    print(retrieved_docs)
     references_papers = {}
     print("Papers\n")
-    for doc in retrieved_docs:
+    for doc, score in retrieved_docs:
         url = doc.metadata.get('url', 'https://')
         ref_key = f"{doc.metadata.get('author', 'Unknown Author')}: {doc.metadata.get('title', 'Untitled')} ({doc.metadata.get('year', 'Unknown Year')}). [{'Link'}]({url})"
 
@@ -86,19 +83,17 @@ def retrieve_papers(state: State):
     return {"references_papers": references_papers}
 
 def retrieve_tables(state: State):
-        # Retrieve documents along with relevance scores
+    score_threshold = 0.8
+    query = f"query: {state['question']}"
+    print(query)
+    # Retrieve documents along with relevance scores
     retrieved_docs = vector_store_tables.similarity_search_with_relevance_scores(
-        state["question"], k=5
+        query, k=5,score_threshold=score_threshold
     )
-
-    threshold = 0.2
-    # Filter documents based on the relevance scores
-    retrieved_docs = [
-        doc for doc, score in retrieved_docs if score >= threshold
-    ]
+    print(retrieved_docs)
     references_tables = {}
 
-    for doc in retrieved_docs:
+    for doc, score in retrieved_docs:
         url = doc.metadata.get('url', 'https://')
         ref_key = f"{doc.metadata.get('author', 'Unknown Author')}: {doc.metadata.get('title', 'Untitled')} ({doc.metadata.get('year', 'Unknown Year')}). [{'Link'}]({url})"
         if ref_key not in references_tables:
@@ -116,12 +111,11 @@ def generate_response_papers(state: State):
     for key, segments in state['references_papers'].items()
     )
 
+    query = f"query: {state['question']}"
     rag_prompt = rag_prompt_template.format(
-        question=state["question"],
+        question=query,
         context=reference_segments,
     )
-    print("Prompt papers")
-    print(rag_prompt)
 
     # Format the input using BaseMessages
     messages = [
@@ -146,7 +140,7 @@ def generate_response_tables(state: State):
         context=reference_segments,
     )
     print("Prompt tables")
-    print(rag_prompt)
+
     # Format the input using BaseMessages
     messages = [
         HumanMessage(content=rag_prompt),
@@ -168,29 +162,22 @@ def generate_final_response(state: State):
         response_tables=state["response_tables"],
     )
     response = llm.invoke(final_prompt)
-    references_list = set()
+    references_set = set()
     #response_content = ""
 
-    # Apply fuzzy matching for inline citations
     for ref, segments in state["references_papers"].items():
-        for segment in segments:
-            if find_best_match(segment, response.content):
-                response.content = response.content.replace(segment, f"{segment} [{ref}]")
-            references_list.add(ref)
+            references_set.add(ref)
 
     for ref, segments in state["references_tables"].items():
-        for segment in segments:
-            if find_best_match(segment, response.content):
-                response.content = response.content.replace(segment, f"{segment} [{ref}]")
-            references_list.add(ref)
+            references_set.add(ref)
 
     # Append a structured reference section at the end
-    reference_section = "\n\nReferences:\n" + "\n".join(f"- {ref}" for ref in references_list)
+    reference_section = "\n\nReferences:\n" + "\n".join(f"- {ref}" for ref in references_set)
     response.content += reference_section
-    response_papers = f"\n\nOriginal response based on papers:\n{state["response_papers"]}\n"
-    response_tables = f"\nOriginal response based on tables:\n{state["response_tables"]}\n"
-    response.content +=response_papers
-    response.content +=response_tables
+    #response_papers = f"\n\nOriginal response based on papers:\n{state["response_papers"]}\n"
+    #response_tables = f"\nOriginal response based on tables:\n{state["response_tables"]}\n"
+    #response.content +=response_papers
+    #response.content +=response_tables
 
     return {"final_answer": response.content}
 
@@ -204,6 +191,13 @@ graph_builder = StateGraph(State).add_sequence([
 ])
 graph_builder.add_edge(START, "retrieve_papers")
 graph = graph_builder.compile()
+
+from langchain_core.runnables.graph import MermaidDrawMethod
+
+# Generate the image
+graph.get_graph().draw_mermaid_png(
+    draw_method=MermaidDrawMethod.API,output_file_path="llm_graph.png"
+)
 
 def fused_response(query: str):
     # Initialize state

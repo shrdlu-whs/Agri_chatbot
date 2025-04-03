@@ -17,23 +17,23 @@ groq_api_key = os.getenv("GROQ_API_KEY")
 class State(TypedDict):
     question: str
     context_papers: List[Document]
-    references_papers: dict[str, List[str]]  # Stores references as keys with multiple segments
+    references_papers: dict[str, List[str]]  # Store references as keys with multiple segments
     context_tables: List[Document]
-    references_tables: dict[str, List[str]]  # Same for tables
+    references_tables: dict[str, List[str]]  
     response_papers: str
     response_tables: str
     final_answer: str
 
 # Initialize embedding model
 embedding_model_id = "sentence-transformers/all-MiniLM-L12-v2"
-def get_embeddings(embedding_model_id):  # Returns the embedding model
+def get_embeddings(embedding_model_id):
     return HuggingFaceEmbeddings(model_name=embedding_model_id)
 
 # Initialize LLM
-model_id = "llama3-8b-8192"
-model_provider="groq"
-#model_id="tinyllama"
-#model_provider="ollama"
+#model_id = "llama3-8b-8192"
+#model_provider="groq"
+model_id="gemma3"
+model_provider="ollama"
 def load_llm():
     llm = init_chat_model(model_id, model_provider=model_provider,temperature=0, groq_api_key=groq_api_key)
     return llm
@@ -51,6 +51,7 @@ template_path_fusion = "./Agri_chatbot/prompts/fusion_prompt.txt"
 input_variables_fusion = ["question","response_papers", "response_tables"]
 template_path_rag = "./Agri_chatbot/prompts/rag_prompt.txt"
 input_variables_rag = ["question", "context"]
+
 def load_prompt_template(template_path, input_variables):
     with open(template_path, "r") as f:
         template_content = f.read()
@@ -65,17 +66,16 @@ rag_prompt_template = load_prompt_template(template_path_rag, input_variables_ra
 def retrieve_papers(state: State):
     # Retrieve documents along with relevance scores
     retrieved_docs = vector_store_pdf.similarity_search_with_relevance_scores(
-        state["question"], k=3
+        state["question"], k=6
     )
-
-    threshold = 0.8
+    threshold = 0.3
     # Filter documents based on the relevance scores
     retrieved_docs = [
         doc for doc, score in retrieved_docs if score >= threshold
     ]
 
     references_papers = {}
-
+    print("Papers\n")
     for doc in retrieved_docs:
         url = doc.metadata.get('url', 'https://')
         ref_key = f"{doc.metadata.get('author', 'Unknown Author')}: {doc.metadata.get('title', 'Untitled')} ({doc.metadata.get('year', 'Unknown Year')}). [{'Link'}]({url})"
@@ -83,16 +83,15 @@ def retrieve_papers(state: State):
         if ref_key not in references_papers:
             references_papers[ref_key] = []
         references_papers[ref_key].append(doc.page_content)
-
-    return {"context_papers": retrieved_docs, "references_papers": references_papers}
+    return {"references_papers": references_papers}
 
 def retrieve_tables(state: State):
         # Retrieve documents along with relevance scores
     retrieved_docs = vector_store_tables.similarity_search_with_relevance_scores(
-        state["question"], k=3
+        state["question"], k=5
     )
 
-    threshold = 0.8
+    threshold = 0.2
     # Filter documents based on the relevance scores
     retrieved_docs = [
         doc for doc, score in retrieved_docs if score >= threshold
@@ -105,16 +104,24 @@ def retrieve_tables(state: State):
         if ref_key not in references_tables:
             references_tables[ref_key] = []
         references_tables[ref_key].append(doc.page_content)
-
-    return {"context_tables": retrieved_docs, "references_tables": references_tables}
+    return {"references_tables": references_tables}
 
 def generate_response_papers(state: State):
-    # Combine content into a single string
-    context_content = "\n\n".join(doc.page_content for doc in state["context_papers"])
+    # Do not query model if no context available
+    if state['references_papers'] == {}:
+        return {"response_papers": "No information available"}
+    # Combine references into a single string
+    reference_segments = "\n".join(
+    f"{key}:\n" + "\n".join(f"- {segment}" for segment in segments)
+    for key, segments in state['references_papers'].items()
+    )
+
     rag_prompt = rag_prompt_template.format(
         question=state["question"],
-        context=context_content,
+        context=reference_segments,
     )
+    print("Prompt papers")
+    print(rag_prompt)
 
     # Format the input using BaseMessages
     messages = [
@@ -125,13 +132,21 @@ def generate_response_papers(state: State):
     return {"response_papers": response.content}
 
 def generate_response_tables(state: State):
-    # Combine content into a single string
-    context_content = "\n\n".join(doc.page_content for doc in state["context_tables"])
-    rag_prompt = rag_prompt_template.format(
-        question=state["question"],
-        context=context_content,
+    # Do not query model if no context available
+    if state['references_tables'] == {}:
+        return {"response_tables": "No information available"}
+        # Combine references into a single string
+    reference_segments = "\n".join(
+    f"{key}:\n\n" + "\n".join(f"- {segment}" for segment in segments)
+    for key, segments in state['references_tables'].items()
     )
 
+    rag_prompt = rag_prompt_template.format(
+        question=state["question"],
+        context=reference_segments,
+    )
+    print("Prompt tables")
+    print(rag_prompt)
     # Format the input using BaseMessages
     messages = [
         HumanMessage(content=rag_prompt),
@@ -140,22 +155,11 @@ def generate_response_tables(state: State):
     response = llm.invoke(messages)  # Send formatted list of messages
     return {"response_tables": response.content}
 
-def generate_response_generic(state: State):
-
-    # Format the input using BaseMessages
-    messages = [
-        HumanMessage(content=f"Question: {state['question']}")
-    ]
-    
-    response = llm.invoke(messages)  # Send formatted list of messages
-    return {"response_generic": response.content}
-
-
 from fuzzywuzzy import fuzz
 
 def find_best_match(segment, response_text):
     similarity_score = fuzz.partial_ratio(segment, response_text)
-    return similarity_score > 50  # Adjust threshold as needed
+    return similarity_score > 20
 
 def generate_final_response(state: State):
     final_prompt = fusion_prompt_template.format(
@@ -165,23 +169,28 @@ def generate_final_response(state: State):
     )
     response = llm.invoke(final_prompt)
     references_list = set()
+    #response_content = ""
 
     # Apply fuzzy matching for inline citations
     for ref, segments in state["references_papers"].items():
         for segment in segments:
             if find_best_match(segment, response.content):
                 response.content = response.content.replace(segment, f"{segment} [{ref}]")
-                references_list.add(ref)
+            references_list.add(ref)
 
     for ref, segments in state["references_tables"].items():
         for segment in segments:
             if find_best_match(segment, response.content):
                 response.content = response.content.replace(segment, f"{segment} [{ref}]")
-                references_list.add(ref)
+            references_list.add(ref)
 
     # Append a structured reference section at the end
     reference_section = "\n\nReferences:\n" + "\n".join(f"- {ref}" for ref in references_list)
     response.content += reference_section
+    response_papers = f"\n\nOriginal response based on papers:\n{state["response_papers"]}\n"
+    response_tables = f"\nOriginal response based on tables:\n{state["response_tables"]}\n"
+    response.content +=response_papers
+    response.content +=response_tables
 
     return {"final_answer": response.content}
 

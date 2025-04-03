@@ -192,13 +192,6 @@ graph_builder = StateGraph(State).add_sequence([
 graph_builder.add_edge(START, "retrieve_papers")
 graph = graph_builder.compile()
 
-from langchain_core.runnables.graph import MermaidDrawMethod
-
-# Generate the image
-graph.get_graph().draw_mermaid_png(
-    draw_method=MermaidDrawMethod.API,output_file_path="llm_graph.png"
-)
-
 def fused_response(query: str):
     # Initialize state
     state = {

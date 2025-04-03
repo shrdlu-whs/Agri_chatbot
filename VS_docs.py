@@ -23,15 +23,12 @@ def VS_pdfs(embedding_model_id, pdf_load_path, pdf_save_path):
     metadata = pd.read_csv(pdf_metadata)
 
     for index, row in metadata.iterrows():
-        print(row['pdf'])
+        print(row['file'])
         print("\n")
-        loader = PDFMinerLoader(os.path.join(pdf_load_path,row['pdf']))
+        loader = PDFMinerLoader(os.path.join(pdf_load_path,row['file']),extract_images=True)
         document = loader.load()[0]
-        doc_metadata = row
-        # Convert doc_metadata to dictionary
-        doc_metadata = doc_metadata.to_dict()
         # Append metadata to document metadata
-        document.metadata.update(doc_metadata)
+        document.metadata = row.to_dict()
         print(document.metadata)
         text_chunks = text_splitter.split_documents([document])
         text_chunks_all.extend(text_chunks)

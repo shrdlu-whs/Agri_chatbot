@@ -1,66 +1,62 @@
-# User Guide 
-## How to Use the Agricultural Chatbot Effectively
+# User Guide  
+## How to Use the EU Agricultural Policy Chatbot Effectively  
 
-A well-crafted prompt ensures the chatbot understands your situation and provides accurate, practical advice. Follow these tips to make your questions clear, relatable, and specific to your agricultural needs.
+A well-crafted prompt ensures the chatbot understands your situation and provides accurate, practical advice about EU agricultural policies. Follow these tips to make your questions clear, relevant, and specific to your needs.
 
-### Tips for Asking Questions
+### Tips for Asking Questions  
 
-**1. Be Specific**
+**1. Be Specific**  
 
-Include details like the type of crop, location, or time of year. This helps the chatbot give targeted recommendations.
+Include details about the policy or program you're inquiring about. This helps the chatbot provide focused and informative answers.
 
-    What’s the best way to grow maize in a rainy area?
+    How does the Common Agricultural Policy support small-scale farmers in Southern Europe?
 
-**2. Keep Questions Simple and Focused**
+**2. Keep Questions Simple and Focused**  
 
-Avoid combining too many topics into one question. Direct, clear queries work best.
+Avoid combining too many topics in a single question. Concise queries ensure the chatbot stays on track.
 
-    Which fertiliser works best for tomatoes?
+    What funding is available under the EU biodiversity strategy?
 
-**3. Include Measurements or Numbers**
+**3. Provide Numbers or Scope**  
 
-Mention areas, quantities, or timelines to make your question more actionable.
+Mention specific timeframes, areas, or sizes to make your question actionable.
 
-    How much water do I need for 1 acre of rice?
+    What subsidies are available for farms under 50 hectares?
 
-**4. Mention Growth Stages or Timelines**
+**4. Include Context or Regions**  
 
-If the crop has distinct stages (e.g., planting, growing, or harvest), include this.
+Referring to your location or context ensures the advice is tailored to the relevant EU policies.
 
-    What pests attack wheat during the flowering stage?
+    How do EU agricultural policies address climate change in Central Europe?
 
-**5. Describe Problems in Detail**
+**5. Describe Issues or Objectives Clearly**  
 
-Explain symptoms, when they started, and what’s affected.
+Explain your goals or challenges with clear details. This ensures the chatbot can offer useful guidance.
 
-    My maize leaves are turning yellow—what could be wrong?
+    I’m struggling with maintaining biodiversity on my farm. How can EU policies help?
 
-**6. Ask for Solutions within Limits**
+**6. Ask for Solutions Within Constraints**  
 
-If you have a budget or resource constraints, mention them.
+If you face limitations like budget or resources, mention them to make the advice practical.
 
-    How can I manage pests on a small budget for soybeans?
+    What affordable programs exist for small farmers to adopt sustainable practices?
 
-**7. Add Local Context**
+**7. Focus on Stages or Policy Areas**  
 
-Highlight your location or climate conditions to make the advice more relevant.
+Specify the stage or type of policy you’re interested in. Whether it’s funding opportunities, compliance, or long-term planning, precision is key.
 
-    What crops grow well in sandy soil in Southern Europe?
+    What are the current EU requirements for organic farming certification?
 
-### Combining the Tips for a Successful Prompt
+### Combining the Tips for a Successful Prompt  
 
-Here’s an example that brings it all together:
+Here’s an example that incorporates multiple tips:  
 
-    I’m growing tomatoes in Southern Europe, and
-    the leaves are turning yellow during the flowering
-    stage. What could be causing this, and how can I fix it on a small budget?
+    I’m a farmer in Northern Germany with 30 hectares, and I need help understanding how to comply with EU sustainability standards under the Common Agricultural Policy. What are my options for funding biodiversity-friendly practices?  
 
-This question works because:
+This question is effective because:  
+- **It’s specific** (mentions location, farm size, and standards).  
+- **It explains the challenge clearly** (compliance with EU policies).  
+- **It includes local context** (Northern Germany).  
+- **It focuses on practical solutions** (funding biodiversity-friendly practices).  
 
-    - It’s specific (mentions tomatoes, yellowing leaves,
-      and flowering stage).
-    - It explains the problem clearly.
-    - It includes local context (Southern Europe).
-    - It asks for affordable solutions.
-
-Using these tips, you’ll get better, more practical answers from your agricultural chatbot!
+By using these tips, you’ll receive insightful and tailored answers from your EU Agricultural Policy chatbot!  
